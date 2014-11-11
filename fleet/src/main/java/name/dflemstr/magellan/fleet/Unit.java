@@ -73,11 +73,23 @@ public interface Unit extends Closeable {
 
     void unload() throws IOException, InterruptedException;
 
+    void startAsync() throws IOException, InterruptedException;
+
+    void stopAsync() throws IOException, InterruptedException;
+
+    void loadAsync() throws IOException, InterruptedException;
+
+    void unloadAsync() throws IOException, InterruptedException;
+
   }
 
   public interface Template extends Unit {
 
     Singleton instance(String instance);
+
+    default Singleton instance(int instance) {
+      return instance(Integer.toUnsignedString(instance));
+    }
   }
 
   public interface Builder {

@@ -5,6 +5,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 
 import java.io.BufferedReader;
@@ -17,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -210,13 +212,55 @@ abstract class CmdUnit implements Unit {
         throw new RuntimeException("Could not unload unit");
       }
     }
+
+    @Override
+    public void startAsync() throws IOException, InterruptedException {
+      // TODO: remove inheritIO
+      if (new ProcessBuilder().command("fleetctl", "start", "-no-block", name()).inheritIO().start()
+              .waitFor()
+          != 0) {
+        throw new RuntimeException("Could not start unit");
+      }
+    }
+
+    @Override
+    public void stopAsync() throws IOException, InterruptedException {
+      // TODO: remove inheritIO
+      if (new ProcessBuilder().command("fleetctl", "stop", "-no-block", name()).inheritIO().start()
+              .waitFor() != 0) {
+        throw new RuntimeException("Could not stop unit");
+      }
+    }
+
+    @Override
+    public void loadAsync() throws IOException, InterruptedException {
+      // TODO: remove inheritIO
+      if (new ProcessBuilder().command("fleetctl", "load", "-no-block", name()).inheritIO().start()
+              .waitFor() != 0) {
+        throw new RuntimeException("Could not load unit");
+      }
+    }
+
+    @Override
+    public void unloadAsync() throws IOException, InterruptedException {
+      // TODO: remove inheritIO
+      if (new ProcessBuilder().command("fleetctl", "unload", "-no-block", name()).inheritIO()
+              .start()
+              .waitFor()
+          != 0) {
+        throw new RuntimeException("Could not unload unit");
+      }
+    }
   }
 
   @AutoValue
   static abstract class TemplateImpl extends CmdUnit implements Template {
 
+    private Set<String> instances = Sets.newHashSet();
+
     @Override
-    public Singleton instance(String instance) {
+    public synchronized Singleton instance(String instance) {
+      instances.add(instance);
       return new AutoValue_CmdUnit_SingletonImpl(definition(), baseName(), kind(), instance);
     }
 
@@ -228,6 +272,15 @@ abstract class CmdUnit implements Unit {
     @Override
     boolean isTemplate() {
       return true;
+    }
+
+    @Override
+    public void close() throws IOException {
+      for (String i : instances) {
+        instance(i).close();
+      }
+
+      super.close();
     }
   }
 

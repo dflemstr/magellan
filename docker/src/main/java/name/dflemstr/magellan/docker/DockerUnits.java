@@ -18,35 +18,22 @@ public final class DockerUnits {
         .requires("etcd.service")
         .section("Service")
         .entry("TimeoutStartSec", "0")
-        .entry("ExecStartPre", "-/usr/bin/docker kill %n")
-        .entry("ExecStartPre", "-/usr/bin/docker rm %n")
+        .entry("ExecStartPre", "-/usr/bin/docker kill %p.%i")
+        .entry("ExecStartPre", "-/usr/bin/docker rm %p.%i")
         .entry("ExecStartPre", "-/usr/bin/docker pull {0}", definition.image())
-        .entry("ExecStart", "/usr/bin/docker run --rm --name %n -P {0}", definition.image())
-        .entry("ExecStop", "/usr/bin/docker stop %n");
+        .entry("ExecStart", "/usr/bin/docker run --rm --name %p.%i -P {0}", definition.image())
+        .entry("ExecStop", "/usr/bin/docker stop %p.%i");
   }
 
-  public static UnitDefinition.Builder etcdRegistrar(DockerUnitDefinition definition,
-                                                     String unitNameToRegister) {
+  public static UnitDefinition.Builder etcdRegistrar(String unitNameToRegister) {
     // Return .Builder instead of .Builder.SectionFocused so that consumers have to call .section()
     // again, and we don't leak which section we have currently selected.
-
-    if (unitNameToRegister.endsWith(".service")) {
-      unitNameToRegister =
-          unitNameToRegister.substring(0, unitNameToRegister.length() - ".service".length());
-    }
-
-    if (unitNameToRegister.endsWith("@")) {
-      unitNameToRegister += "%i";
-    }
-
-    unitNameToRegister += ".service";
-
     return UnitDefinition.builder()
         .section("Service")
         .entry("ExecStart",
-               "/bin/sh -c \"while true; do /usr/bin/docker port {0} | while read spec x port; do /usr/bin/etcdctl set /unit/{0}/port/$(echo $spec | tr '/' ':') %H:$(echo $port | cut -d: -f2) --ttl 10; done; sleep 5; done\"",
-               unitNameToRegister)
-        .entry("ExecStop",
-               "/usr/bin/etcdctl rm --recursive /unit/{0}", unitNameToRegister);
+               "/bin/sh -c \"while true; do /usr/bin/docker port {1} | while read spec x port; do /usr/bin/etcdctl set /unit/{0}/port/$(echo $spec | tr '/' ':') %H:$(echo $port | cut -d: -f2) --ttl 10; done; sleep 5; done\"",
+               unitNameToRegister, unitNameToRegister.replace('@', '.'))
+        .entry("ExecStopPost",
+               "-/usr/bin/etcdctl rm --recursive /unit/{0}", unitNameToRegister);
   }
 }

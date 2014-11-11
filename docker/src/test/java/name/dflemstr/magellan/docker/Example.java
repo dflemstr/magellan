@@ -12,21 +12,24 @@ public class Example {
     DockerUnitDefinition postgresDocker = DockerUnitDefinition.usingImage("postgres").build();
     UnitDefinition postgres = DockerUnits.basic(postgresDocker).build();
     UnitDefinition postgresRegistrar =
-        DockerUnits.etcdRegistrar(postgresDocker, "pgsql")
-            .bindsTo("pgsql.service")
-            .after("pgsql.service")
+        DockerUnits.etcdRegistrar("pgsql@%i.service")
+            .bindsTo("pgsql@%i.service")
+            .after("pgsql@%i.service")
             .section("X-Fleet")
-            .entry("MachineOf", "psql.service")
+            .entry("MachineOf", "pgsql@%i.service")
             .build();
 
     try (Fleet fleet = Fleet.usingFleetCtl();
-         Unit.Singleton psql = fleet.service("pgsql", postgres).submitSingleton();
-         Unit.Singleton psqlRegistrar = fleet.service("pgsql-registrar", postgresRegistrar)
-             .submitSingleton()) {
-      psql.start();
-      psqlRegistrar.start();
+         Unit.Template psql = fleet.service("pgsql", postgres).submitTemplate();
+         Unit.Template psqlRegistrar = fleet.service("pgsql-registrar", postgresRegistrar)
+             .submitTemplate()) {
+      psql.instance(1).startAsync();
+      psql.instance(2).startAsync();
+      psqlRegistrar.instance(1).startAsync();
+      psqlRegistrar.instance(2).startAsync();
       Thread.sleep(1000);
-      psql.stop();
+      psql.instance(1).stopAsync();
+      psql.instance(2).stopAsync();
     }
   }
 }
