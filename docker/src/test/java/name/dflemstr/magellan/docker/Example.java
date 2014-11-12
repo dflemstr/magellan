@@ -12,7 +12,8 @@ public class Example {
     DockerUnitDefinition postgresDocker = DockerUnitDefinition.usingImage("postgres").build();
     UnitDefinition postgres = DockerUnits.basic(postgresDocker).build();
     UnitDefinition postgresRegistrar =
-        DockerUnits.etcdRegistrar("pgsql@%i.service")
+        DockerUnits.etcdRegistrar("pgsql@%i.service",
+                                  "_spotify-${service}._${protocol}.services.${domain}")
             .bindsTo("pgsql@%i.service")
             .after("pgsql@%i.service")
             .section("X-Fleet")
